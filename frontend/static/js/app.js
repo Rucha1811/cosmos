@@ -107,11 +107,23 @@ function displayResult(data) {
       if (t.confidence < 0.5) div.classList.add('confidence-very-low');
       else if (t.confidence < 0.8) div.classList.add('confidence-low');
 
+      div.setAttribute('data-text', t.text);
+      div.title = 'Click to fill the focused field';
       div.innerHTML = `
         <span class="index">#${i + 1}</span>
         <span class="content">${escapeHtml(t.text)}</span>
         <span class="confidence">${(t.confidence * 100).toFixed(1)}%</span>
       `;
+      div.addEventListener('click', function() {
+        const active = document.activeElement;
+        if (active && active.classList.contains('field-input')) {
+          active.value = this.getAttribute('data-text');
+          active.dispatchEvent(new Event('input'));
+          showToast('Filled: ' + this.getAttribute('data-text'), 'success');
+        } else {
+          showToast('Click a form field first, then tap OCR text to fill it', 'info');
+        }
+      });
       textList.appendChild(div);
     });
   }

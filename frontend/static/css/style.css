@@ -260,6 +260,12 @@ body {
   background: var(--bg);
   border-radius: var(--radius-sm);
   border-left: 3px solid var(--primary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.text-item:hover {
+  background: var(--bg-hover);
 }
 
 .text-item .index {
