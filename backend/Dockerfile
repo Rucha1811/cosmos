@@ -17,6 +17,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
 
+COPY frontend/ ./frontend/
+
 RUN mkdir -p uploads
 
 ENV FLASK_ENV=production
