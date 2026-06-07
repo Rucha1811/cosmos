@@ -117,7 +117,7 @@ def get_ocr():
     return ocr_instance
 
 
-FRONTEND_DIR = os.path.normpath(os.path.join(BASE_DIR, "..", "frontend"))
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
 
 @app.route("/")
