@@ -421,8 +421,8 @@ def export_csv():
             scan.state or "",
             scan.gstin or "",
             scan.assigned_to or "",
-            scan.created_at.strftime("%Y-%m-%d %H:%M:%S") if scan.created_at else "",
-            scan.updated_at.strftime("%Y-%m-%d %H:%M:%S") if scan.updated_at else "",
+            scan.created_at.strftime("%d-%b-%Y %H:%M") if scan.created_at else "",
+            scan.updated_at.strftime("%d-%b-%Y %H:%M") if scan.updated_at else "",
         ])
 
     output.seek(0)
