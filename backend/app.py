@@ -30,7 +30,7 @@ import cv2
 
 from paddleocr import PaddleOCR
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=None)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
