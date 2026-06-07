@@ -4,6 +4,7 @@ import uuid
 import csv
 import io
 import json
+import re
 import warnings
 import logging
 import socket
@@ -117,6 +118,96 @@ def get_ocr():
     return ocr_instance
 
 
+def auto_fill_fields(texts):
+    fields = {
+        "industry": "",
+        "sales_branch": "",
+        "rating": "",
+        "city": "",
+        "state": "",
+        "gstin": "",
+        "assigned_to": "",
+    }
+
+    INDIAN_CITIES = [
+        "MUMBAI", "DELHI", "BANGALORE", "BENGALURU", "CHENNAI", "KOLKATA",
+        "HYDERABAD", "AHMEDABAD", "PUNE", "JAIPUR", "LUCKNOW", "SURAT",
+        "KOCHI", "COIMBATORE", "INDORE", "BHOPAL", "CHANDIGARH", "NAGPUR",
+        "GURGAON", "NOIDA", "THANE", "VADODARA", "AGRA", "VARANASI",
+        "PATNA", "RANCHI", "BHUBANESWAR", "AMRITSAR", "MYSORE", "MANGALORE",
+        "VIJAYAWADA", "VISAKHAPATNAM", "LUDHIANA", "JABALPUR", "MADURAI",
+        "RAJKOT", "NASHIK", "SURAT", "KANPUR", "TRICHY", "GOA", "PANJI",
+    ]
+
+    INDIAN_STATES = [
+        "MAHARASHTRA", "KARNATAKA", "TAMIL NADU", "TAMILNADU", "KERALA",
+        "ANDHRA PRADESH", "ANDHRA PRADESH", "TELANGANA", "UTTAR PRADESH",
+        "GUJARAT", "RAJASTHAN", "MADHYA PRADESH", "BIHAR", "WEST BENGAL",
+        "PUNJAB", "HARYANA", "JHARKHAND", "ODISHA", "ASSAM", "GOA",
+        "CHHATTISGARH", "UTTARAKHAND", "HIMACHAL PRADESH", "DELHI",
+    ]
+
+    gstin_pattern = re.compile(r'\b[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}\b')
+
+    for t in texts:
+        clean = t.strip()
+        upper = clean.upper()
+
+        if not clean:
+            continue
+
+        if not fields["gstin"] and gstin_pattern.match(upper):
+            fields["gstin"] = clean
+            continue
+
+        if not fields["rating"]:
+            if re.match(r'^[A-Z]\+{1,2}$', upper) or upper in ["PLATINUM", "GOLD", "SILVER", "DIAMOND"]:
+                fields["rating"] = clean
+                continue
+
+        if not fields["sales_branch"]:
+            if any(kw in upper for kw in ["BRANCH", "OFFICE", "DEPOT", "SHOWROOM", "FACTORY", "WORKS"]):
+                if upper not in ["WORKS"] or clean == t.strip():
+                    fields["sales_branch"] = clean
+                    continue
+
+        if not fields["city"] and upper in INDIAN_CITIES:
+            fields["city"] = clean
+            continue
+
+        if not fields["state"]:
+            state_norm = upper.replace(" ", "")
+            if upper in INDIAN_STATES or state_norm in [s.replace(" ", "") for s in INDIAN_STATES]:
+                fields["state"] = clean
+                continue
+
+        if not fields["assigned_to"]:
+            words = clean.split()
+            if 2 <= len(words) <= 4:
+                has_digit = any(c.isdigit() for c in clean)
+                is_email = "@" in clean
+                has_special = any(c in clean for c in ["@", ".com", "www.", "//", "(", ")", "-"])
+                is_short_addr = any(kw in upper for kw in ["ROAD", "STREET", "NAGAR", "COLONY", "LAYOUT"])
+                if not has_digit and not is_email and not has_special and not is_short_addr and len(clean) > 5:
+                    if all(w[0].isalpha() and w[0].isupper() for w in words if w):
+                        fields["assigned_to"] = clean
+                        continue
+
+    if not fields["industry"]:
+        for t in texts:
+            clean = t.strip()
+            if not clean or clean == fields["assigned_to"] or clean == fields["sales_branch"]:
+                continue
+            has_digit = any(c.isdigit() for c in clean)
+            is_email = "@" in clean
+            is_phone = re.match(r'^[\d\s\+\-\(\)]{7,}$', clean)
+            if len(clean) > 2 and not is_email and not is_phone:
+                fields["industry"] = clean
+                break
+
+    return fields
+
+
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
 
@@ -178,11 +269,20 @@ def scan_card():
 
     full_text = "\n".join(rec_texts) if rec_texts else ""
 
+    auto_filled = auto_fill_fields(rec_texts)
+
     scan = CardScan(
         uuid=scan_uuid,
         filename=file.filename,
         image_path=filepath,
         full_text=full_text,
+        industry=auto_filled["industry"],
+        sales_branch=auto_filled["sales_branch"],
+        rating=auto_filled["rating"],
+        city=auto_filled["city"],
+        state=auto_filled["state"],
+        gstin=auto_filled["gstin"],
+        assigned_to=auto_filled["assigned_to"],
     )
     db.session.add(scan)
     db.session.flush()
